@@ -6,9 +6,9 @@ const router = express.Router();
 router.get('/db-test', async (req, res) => {
   try {
     const result = await pool.query('SELECT NOW()');
-    res.json(result.rows);
+    res.json({ connected: true, timestamp: result.rows[0].now });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ connected: false, error: err.message });
   }
 });
 
