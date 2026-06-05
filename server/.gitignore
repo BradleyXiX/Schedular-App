@@ -16,6 +16,7 @@ Thumbs.db
 # Log files and temporary files
 *.log
 /tmp/
+/logs/
 
 # Sensitive information (example)
 .env

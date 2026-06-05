@@ -5,6 +5,7 @@ import testRoutes from './routes/test.js';
 import authRoutes from './routes/auth.js';
 import schedulesRoutes from './routes/schedules.js';
 import { initializeDatabase } from './utils/initDb.js';
+import { logger, errorLogger } from './utils/logger.js';
 
 dotenv.config();
 const app = express();
@@ -18,9 +19,11 @@ initializeDatabase().catch(err => {
 //Middleware 
 app.use(cors());
 app.use(express.json());
+app.use(logger);
+app.use(errorLogger);
 
 //Routes
-app.get('/', (req, res) => res.send('API is running'));
+app.get('/', (req, res) => res.send('✅ Scheduler API is running'));
 app.use('/api/test', testRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/schedules', schedulesRoutes);

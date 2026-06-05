@@ -1,8 +1,15 @@
 import express from 'express';
 import pool from '../utils/db.js';
 import { verifyToken } from '../middleware/auth.js';
+import { validateRequest } from '../middleware/validation.js';
+import { scheduleSchemas } from '../schemas/validationSchemas.js';
+import { apiLimiter, createScheduleLimiter } from '../middleware/rateLimiter.js';
+import { logActivity } from '../utils/logger.js';
 
 const router = express.Router();
+
+// Apply rate limiting to all schedule routes
+router.use(apiLimiter);
 
 // Get all schedules for user
 router.get('/', verifyToken, async (req, res) => {
@@ -37,22 +44,16 @@ router.get('/:id', verifyToken, async (req, res) => {
 });
 
 // Create schedule
-router.post('/', verifyToken, async (req, res) => {
+router.post('/', verifyToken, createScheduleLimiter, validateRequest(scheduleSchemas.create), async (req, res) => {
   try {
     const { title, description, start_time, end_time } = req.body;
-
-    if (!title || !start_time || !end_time) {
-      return res.status(400).json({ error: 'Title, start_time, and end_time are required' });
-    }
-
-    if (new Date(start_time) >= new Date(end_time)) {
-      return res.status(400).json({ error: 'Start time must be before end time' });
-    }
 
     const result = await pool.query(
       'INSERT INTO schedules (user_id, title, description, start_time, end_time) VALUES ($1, $2, $3, $4, $5) RETURNING *',
       [req.user.id, title, description || null, start_time, end_time]
     );
+
+    logActivity(req.user.id, 'schedule_created', { scheduleId: result.rows[0].id, title });
 
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -61,7 +62,7 @@ router.post('/', verifyToken, async (req, res) => {
 });
 
 // Update schedule
-router.put('/:id', verifyToken, async (req, res) => {
+router.put('/:id', verifyToken, validateRequest(scheduleSchemas.update), async (req, res) => {
   try {
     const { title, description, start_time, end_time, status } = req.body;
 
@@ -87,6 +88,8 @@ router.put('/:id', verifyToken, async (req, res) => {
       [title, description, start_time, end_time, status, req.params.id, req.user.id]
     );
 
+    logActivity(req.user.id, 'schedule_updated', { scheduleId: req.params.id });
+
     res.json(updateResult.rows[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -104,6 +107,8 @@ router.delete('/:id', verifyToken, async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Schedule not found' });
     }
+
+    logActivity(req.user.id, 'schedule_deleted', { scheduleId: req.params.id });
 
     res.json({ message: 'Schedule deleted successfully', id: result.rows[0].id });
   } catch (err) {

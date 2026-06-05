@@ -2,17 +2,17 @@ import express from 'express';
 import bcrypt from 'bcrypt';
 import pool from '../utils/db.js';
 import { generateToken } from '../middleware/auth.js';
+import { validateRequest } from '../middleware/validation.js';
+import { authSchemas } from '../schemas/validationSchemas.js';
+import { authLimiter } from '../middleware/rateLimiter.js';
+import { logActivity } from '../utils/logger.js';
 
 const router = express.Router();
 
 // Register
-router.post('/register', async (req, res) => {
+router.post('/register', authLimiter, validateRequest(authSchemas.register), async (req, res) => {
   try {
     const { username, email, password } = req.body;
-
-    if (!username || !email || !password) {
-      return res.status(400).json({ error: 'All fields are required' });
-    }
 
     // Check if user exists
     const userExists = await pool.query(
@@ -36,6 +36,8 @@ router.post('/register', async (req, res) => {
     const user = result.rows[0];
     const token = generateToken({ id: user.id, username: user.username });
 
+    logActivity(user.id, 'user_registered', { email, username });
+
     res.status(201).json({
       message: 'User registered successfully',
       user: { id: user.id, username: user.username, email: user.email },
@@ -47,13 +49,9 @@ router.post('/register', async (req, res) => {
 });
 
 // Login
-router.post('/login', async (req, res) => {
+router.post('/login', authLimiter, validateRequest(authSchemas.login), async (req, res) => {
   try {
     const { email, password } = req.body;
-
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
-    }
 
     // Get user
     const result = await pool.query(
@@ -71,10 +69,12 @@ router.post('/login', async (req, res) => {
     const validPassword = await bcrypt.compare(password, user.password_hash);
 
     if (!validPassword) {
+      logActivity(user.id, 'failed_login', { email });
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
     const token = generateToken({ id: user.id, username: user.username });
+    logActivity(user.id, 'user_login', { email });
 
     res.json({
       message: 'Login successful',
