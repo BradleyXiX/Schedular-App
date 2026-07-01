@@ -61,6 +61,7 @@ export const scheduleSchemas = {
     description: Joi.string()
       .max(1000)
       .optional()
+      .allow('')
       .messages({
         'string.max': 'Description cannot exceed 1000 characters'
       }),
@@ -77,7 +78,17 @@ export const scheduleSchemas = {
         'any.required': 'End time is required',
         'date.base': 'End time must be a valid date',
         'date.min': 'End time must be after start time'
-      })
+      }),
+    category_id: Joi.number()
+      .integer()
+      .optional()
+      .allow(null),
+    location: Joi.string()
+      .max(255)
+      .optional()
+      .allow(''),
+    is_recurring: Joi.boolean()
+      .optional()
   }),
 
   update: Joi.object({
@@ -87,7 +98,8 @@ export const scheduleSchemas = {
       .optional(),
     description: Joi.string()
       .max(1000)
-      .optional(),
+      .optional()
+      .allow(''),
     start_time: Joi.date()
       .optional(),
     end_time: Joi.date()
@@ -97,6 +109,87 @@ export const scheduleSchemas = {
       .optional()
       .messages({
         'any.only': 'Status must be one of: active, completed, cancelled'
+      }),
+    category_id: Joi.number()
+      .integer()
+      .optional()
+      .allow(null),
+    location: Joi.string()
+      .max(255)
+      .optional()
+      .allow(''),
+    is_recurring: Joi.boolean()
+      .optional()
+  })
+};
+
+export const categorySchemas = {
+  create: Joi.object({
+    name: Joi.string()
+      .min(1)
+      .max(50)
+      .required()
+      .messages({
+        'string.min': 'Category name cannot be empty',
+        'string.max': 'Category name cannot exceed 50 characters',
+        'any.required': 'Category name is required'
+      }),
+    color_code: Joi.string()
+      .pattern(/^#[0-9A-Fa-f]{6}$/)
+      .required()
+      .messages({
+        'string.pattern.base': 'Color code must be a valid hex color (e.g. #3b82f6)',
+        'any.required': 'Color code is required'
+      })
+  })
+};
+
+export const reminderSchemas = {
+  create: Joi.object({
+    schedule_id: Joi.number()
+      .integer()
+      .required()
+      .messages({
+        'any.required': 'Schedule ID is required'
+      }),
+    remind_at: Joi.date()
+      .required()
+      .messages({
+        'any.required': 'Reminder time is required',
+        'date.base': 'Reminder time must be a valid date'
+      }),
+    method: Joi.string()
+      .valid('popup', 'email')
+      .optional()
+      .default('popup')
+      .messages({
+        'any.only': 'Method must be either popup or email'
+      })
+  })
+};
+
+export const recurrenceSchemas = {
+  create: Joi.object({
+    frequency: Joi.string()
+      .valid('daily', 'weekly', 'monthly')
+      .required()
+      .messages({
+        'any.only': 'Frequency must be one of: daily, weekly, monthly',
+        'any.required': 'Frequency is required'
+      }),
+    interval: Joi.number()
+      .integer()
+      .min(1)
+      .optional()
+      .default(1)
+      .messages({
+        'number.min': 'Interval must be at least 1'
+      }),
+    end_date: Joi.date()
+      .optional()
+      .allow(null)
+      .messages({
+        'date.base': 'End date must be a valid date'
       })
   })
 };

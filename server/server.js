@@ -4,6 +4,8 @@ import dotenv from 'dotenv';
 import testRoutes from './routes/test.js';
 import authRoutes from './routes/auth.js';
 import schedulesRoutes from './routes/schedules.js';
+import categoriesRoutes from './routes/categories.js';
+import remindersRoutes from './routes/reminders.js';
 import { initializeDatabase } from './utils/initDb.js';
 import { logger, errorLogger } from './utils/logger.js';
 
@@ -27,6 +29,8 @@ app.get('/', (req, res) => res.send('✅ Scheduler API is running'));
 app.use('/api/test', testRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/schedules', schedulesRoutes);
+app.use('/api/categories', categoriesRoutes);
+app.use('/api/reminders', remindersRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
