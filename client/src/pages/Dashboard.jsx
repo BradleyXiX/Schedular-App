@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { scheduleService } from '../services/api';
 import { ScheduleForm } from '../components/ScheduleForm';
 import { ScheduleList } from '../components/ScheduleList';
+import { CalendarView } from '../components/CalendarView';
 import '../styles/Dashboard.css';
 
 export const Dashboard = () => {
@@ -12,6 +13,8 @@ export const Dashboard = () => {
   const [error, setError] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState(null);
+  const [prefilledDate, setPrefilledDate] = useState(null);
+  const [viewMode, setViewMode] = useState('calendar'); // 'calendar' or 'list'
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -40,9 +43,14 @@ export const Dashboard = () => {
 
   const handleCreateSubmit = async (data) => {
     try {
-      await scheduleService.create(data);
+      const { recurrence, ...scheduleData } = data;
+      const res = await scheduleService.create(scheduleData);
+      if (recurrence && res.data.id) {
+        await scheduleService.setRecurrence(res.data.id, recurrence);
+      }
       await fetchSchedules();
       setShowForm(false);
+      setPrefilledDate(null);
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to create schedule');
     }
@@ -50,7 +58,15 @@ export const Dashboard = () => {
 
   const handleUpdateSubmit = async (data) => {
     try {
-      await scheduleService.update(editingSchedule.id, data);
+      const { recurrence, ...scheduleData } = data;
+      await scheduleService.update(editingSchedule.id, scheduleData);
+      if (data.is_recurring && recurrence) {
+        await scheduleService.setRecurrence(editingSchedule.id, recurrence);
+      } else if (!data.is_recurring) {
+        try {
+          await scheduleService.deleteRecurrence(editingSchedule.id);
+        } catch (e) {}
+      }
       await fetchSchedules();
       setEditingSchedule(null);
     } catch (err) {
@@ -69,14 +85,26 @@ export const Dashboard = () => {
     }
   };
 
+  const handleAddEventClick = (date) => {
+    setPrefilledDate(date);
+    setEditingSchedule(null);
+    setShowForm(true);
+  };
+
+  const handleFormCancel = () => {
+    setShowForm(false);
+    setEditingSchedule(null);
+    setPrefilledDate(null);
+  };
+
   return (
     <div className="dashboard">
       <header className="dashboard-header">
         <div className="header-left">
-          <h1>📅 My Schedules</h1>
+          <h1>📅 Scheduler Dashboard</h1>
           <p>Welcome, {user?.username}!</p>
         </div>
-        <button className="logout-btn" onClick={handleLogout}>
+        <button className="logout-btn font-semibold" onClick={handleLogout}>
           Logout
         </button>
       </header>
@@ -84,23 +112,50 @@ export const Dashboard = () => {
       {error && <div className="error-message">{error}</div>}
 
       <div className="dashboard-content">
-        <div className="action-bar">
-          {!showForm && !editingSchedule && (
-            <button 
-              className="btn-primary"
-              onClick={() => setShowForm(true)}
+        <div className="action-bar flex justify-between items-center mb-6">
+          <div className="flex gap-2">
+            {!showForm && !editingSchedule && (
+              <button 
+                className="btn-primary"
+                onClick={() => setShowForm(true)}
+              >
+                + New Schedule
+              </button>
+            )}
+          </div>
+
+          {/* List vs Calendar Toggle */}
+          <div className="join bg-white border border-slate-200 p-0.5 rounded-lg shadow-sm">
+            <button
+              onClick={() => setViewMode('calendar')}
+              className={`btn btn-xs rounded-md border-none px-4 py-1.5 font-bold ${
+                viewMode === 'calendar'
+                  ? 'bg-primary text-white shadow-sm'
+                  : 'bg-transparent text-slate-500 hover:text-slate-700'
+              }`}
             >
-              + New Schedule
+              📅 Calendar View
             </button>
-          )}
+            <button
+              onClick={() => setViewMode('list')}
+              className={`btn btn-xs rounded-md border-none px-4 py-1.5 font-bold ${
+                viewMode === 'list'
+                  ? 'bg-primary text-white shadow-sm'
+                  : 'bg-transparent text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              📋 List View
+            </button>
+          </div>
         </div>
 
         {showForm && (
           <div className="form-container">
             <h2>Create New Schedule</h2>
             <ScheduleForm 
+              prefilledDate={prefilledDate}
               onSubmit={handleCreateSubmit}
-              onCancel={() => setShowForm(false)}
+              onCancel={handleFormCancel}
             />
           </div>
         )}
@@ -111,7 +166,7 @@ export const Dashboard = () => {
             <ScheduleForm 
               schedule={editingSchedule}
               onSubmit={handleUpdateSubmit}
-              onCancel={() => setEditingSchedule(null)}
+              onCancel={handleFormCancel}
             />
           </div>
         )}
@@ -122,11 +177,17 @@ export const Dashboard = () => {
           <div className="empty-state">
             <p>No schedules yet. Create one to get started!</p>
           </div>
-        ) : (
+        ) : viewMode === 'list' ? (
           <ScheduleList 
             schedules={schedules}
             onEdit={setEditingSchedule}
             onDelete={handleDelete}
+          />
+        ) : (
+          <CalendarView 
+            schedules={schedules}
+            onEdit={setEditingSchedule}
+            onAddEvent={handleAddEventClick}
           />
         )}
       </div>
