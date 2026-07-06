@@ -41,16 +41,57 @@ export const CalendarView = ({ schedules, onEdit, onAddEvent }) => {
     setCurrentDate(new Date());
   };
 
+  const doesEventOccurOnDate = (event, targetDate) => {
+    const eventStart = new Date(event.start_time);
+    
+    // Normalize to date boundaries (midnight)
+    const targetDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
+    const startDay = new Date(eventStart.getFullYear(), eventStart.getMonth(), eventStart.getDate());
+    
+    // Target date is before start date
+    if (targetDay < startDay) return false;
+    
+    // Target date is after recurrence end date
+    if (event.recurrence_end_date && targetDay > new Date(event.recurrence_end_date)) {
+      return false;
+    }
+    
+    // If not recurring, match exact date
+    if (!event.is_recurring || !event.recurrence_frequency) {
+      return targetDay.getTime() === startDay.getTime();
+    }
+    
+    const freq = event.recurrence_frequency.toLowerCase();
+    const interval = event.recurrence_interval || 1;
+    
+    const diffTime = targetDay.getTime() - startDay.getTime();
+    
+    if (freq === 'daily') {
+      const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+      return diffDays % interval === 0;
+    }
+    
+    if (freq === 'weekly') {
+      // Check day of week matches (e.g. both are Mondays)
+      if (targetDay.getDay() !== startDay.getDay()) return false;
+      const diffWeeks = Math.round(diffTime / (1000 * 60 * 60 * 24 * 7));
+      return diffWeeks % interval === 0;
+    }
+    
+    if (freq === 'monthly') {
+      // Check day of month matches (e.g. both are on the 15th)
+      if (targetDay.getDate() !== startDay.getDate()) return false;
+      
+      const diffMonths = (targetDay.getFullYear() - startDay.getFullYear()) * 12 + (targetDay.getMonth() - startDay.getMonth());
+      return diffMonths >= 0 && diffMonths % interval === 0;
+    }
+    
+    return false;
+  };
+
   // Event matching helper
   const getEventsForDate = (date) => {
-    return schedules.filter((event) => {
-      const eventStart = new Date(event.start_time);
-      return (
-        eventStart.getFullYear() === date.getFullYear() &&
-        eventStart.getMonth() === date.getMonth() &&
-        eventStart.getDate() === date.getDate()
-      );
-    });
+    return schedules.filter((event) => doesEventOccurOnDate(event, date));
   };
 
   // Rendering grids

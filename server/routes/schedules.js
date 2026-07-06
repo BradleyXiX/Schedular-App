@@ -16,9 +16,11 @@ router.get('/', verifyToken, async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT s.id, s.title, s.description, s.start_time, s.end_time, s.status, s.location, s.is_recurring, s.category_id,
-              c.name AS category_name, c.color_code AS category_color
+              c.name AS category_name, c.color_code AS category_color,
+              r.frequency AS recurrence_frequency, r.interval AS recurrence_interval, r.end_date AS recurrence_end_date
        FROM schedules s
        LEFT JOIN categories c ON s.category_id = c.id
+       LEFT JOIN recurrence_rules r ON s.id = r.schedule_id
        WHERE s.user_id = $1 
        ORDER BY s.start_time DESC`,
       [req.user.id]
@@ -35,9 +37,11 @@ router.get('/:id', verifyToken, async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT s.id, s.title, s.description, s.start_time, s.end_time, s.status, s.location, s.is_recurring, s.category_id,
-              c.name AS category_name, c.color_code AS category_color
+              c.name AS category_name, c.color_code AS category_color,
+              r.frequency AS recurrence_frequency, r.interval AS recurrence_interval, r.end_date AS recurrence_end_date
        FROM schedules s
        LEFT JOIN categories c ON s.category_id = c.id
+       LEFT JOIN recurrence_rules r ON s.id = r.schedule_id
        WHERE s.id = $1 AND s.user_id = $2`,
       [req.params.id, req.user.id]
     );
