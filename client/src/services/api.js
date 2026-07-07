@@ -41,4 +41,10 @@ export const categoryService = {
   create: (data) => api.post('/categories', data)
 };
 
+export const reminderService = {
+  getAll: () => api.get('/reminders'),
+  create: (data) => api.post('/reminders', data),
+  delete: (id) => api.delete(`/reminders/${id}`)
+};
+
 export default api;

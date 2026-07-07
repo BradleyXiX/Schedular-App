@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { categoryService, scheduleService } from '../services/api';
 import '../styles/ScheduleForm.css';
 
-export const ScheduleForm = ({ schedule, prefilledDate, onSubmit, onCancel }) => {
+export const ScheduleForm = ({ schedule, prefilledDate, reminder, onSubmit, onCancel }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [startTime, setStartTime] = useState('');
@@ -14,6 +14,7 @@ export const ScheduleForm = ({ schedule, prefilledDate, onSubmit, onCancel }) =>
   const [frequency, setFrequency] = useState('weekly');
   const [endDate, setEndDate] = useState('');
   const [categories, setCategories] = useState([]);
+  const [reminderOffset, setReminderOffset] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -55,6 +56,17 @@ export const ScheduleForm = ({ schedule, prefilledDate, onSubmit, onCancel }) =>
         };
         fetchRecurrence();
       }
+
+      if (reminder) {
+        const diff = Math.round((new Date(schedule.start_time).getTime() - new Date(reminder.remind_at).getTime()) / 60000);
+        const allowedOffsets = [0, 5, 15, 30, 60, 1440];
+        const closest = allowedOffsets.reduce((prev, curr) => 
+          Math.abs(curr - diff) < Math.abs(prev - diff) ? curr : prev
+        );
+        setReminderOffset(closest.toString());
+      } else {
+        setReminderOffset('');
+      }
     } else if (prefilledDate) {
       const start = new Date(prefilledDate);
       start.setHours(9, 0, 0, 0);
@@ -62,8 +74,11 @@ export const ScheduleForm = ({ schedule, prefilledDate, onSubmit, onCancel }) =>
       end.setHours(10, 0, 0, 0);
       setStartTime(formatDateTimeForInput(start.toISOString()));
       setEndTime(formatDateTimeForInput(end.toISOString()));
+      setReminderOffset('');
+    } else {
+      setReminderOffset('');
     }
-  }, [schedule, prefilledDate]);
+  }, [schedule, prefilledDate, reminder]);
 
   const formatDateTimeForInput = (dateString) => {
     const date = new Date(dateString);
@@ -94,6 +109,7 @@ export const ScheduleForm = ({ schedule, prefilledDate, onSubmit, onCancel }) =>
         category_id: categoryId ? parseInt(categoryId, 10) : null,
         location,
         is_recurring: isRecurring,
+        reminderOffset: reminderOffset !== '' ? parseInt(reminderOffset, 10) : null,
         ...(isRecurring && {
           recurrence: {
             frequency,
@@ -188,6 +204,26 @@ export const ScheduleForm = ({ schedule, prefilledDate, onSubmit, onCancel }) =>
             placeholder="Room, online link, etc."
           />
         </div>
+      </div>
+
+      <div className="form-row">
+        <div className="form-group">
+          <label htmlFor="reminderOffset">Set Reminder</label>
+          <select
+            id="reminderOffset"
+            value={reminderOffset}
+            onChange={(e) => setReminderOffset(e.target.value)}
+          >
+            <option value="">No Reminder</option>
+            <option value="0">At time of event</option>
+            <option value="5">5 minutes before</option>
+            <option value="15">15 minutes before</option>
+            <option value="30">30 minutes before</option>
+            <option value="60">1 hour before</option>
+            <option value="1440">1 day before</option>
+          </select>
+        </div>
+        <div className="form-group"></div>
       </div>
 
       <div className="form-group checkbox-group">
