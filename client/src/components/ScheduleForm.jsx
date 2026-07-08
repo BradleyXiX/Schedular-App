@@ -15,6 +15,11 @@ export const ScheduleForm = ({ schedule, prefilledDate, reminder, onSubmit, onCa
   const [endDate, setEndDate] = useState('');
   const [categories, setCategories] = useState([]);
   const [reminderOffset, setReminderOffset] = useState('');
+  const [showNewCategoryForm, setShowNewCategoryForm] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryColor, setNewCategoryColor] = useState('#3b82f6');
+  const [categoryError, setCategoryError] = useState('');
+  const [categoryLoading, setCategoryLoading] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -28,6 +33,31 @@ export const ScheduleForm = ({ schedule, prefilledDate, reminder, onSubmit, onCa
       setCategories(res.data);
     } catch (err) {
       console.error('Failed to load categories', err);
+    }
+  };
+
+  const handleCreateCategory = async () => {
+    setCategoryError('');
+    if (!newCategoryName.trim()) {
+      setCategoryError('Category name is required');
+      return;
+    }
+
+    setCategoryLoading(true);
+    try {
+      const res = await categoryService.create({
+        name: newCategoryName.trim(),
+        color_code: newCategoryColor
+      });
+      await fetchCategories();
+      setCategoryId(res.data.id.toString());
+      setShowNewCategoryForm(false);
+      setNewCategoryName('');
+      setNewCategoryColor('#3b82f6');
+    } catch (err) {
+      setCategoryError(err.response?.data?.error || 'Failed to create category');
+    } finally {
+      setCategoryLoading(false);
     }
   };
 
@@ -180,18 +210,28 @@ export const ScheduleForm = ({ schedule, prefilledDate, reminder, onSubmit, onCa
       <div className="form-row">
         <div className="form-group">
           <label htmlFor="category">Category</label>
-          <select
-            id="category"
-            value={categoryId}
-            onChange={(e) => setCategoryId(e.target.value)}
-          >
-            <option value="">No Category</option>
-            {categories.map((cat) => (
-              <option key={cat.id} value={cat.id}>
-                {cat.name}
-              </option>
-            ))}
-          </select>
+          <div className="flex gap-2">
+            <select
+              id="category"
+              className="flex-1"
+              value={categoryId}
+              onChange={(e) => setCategoryId(e.target.value)}
+            >
+              <option value="">No Category</option>
+              {categories.map((cat) => (
+                <option key={cat.id} value={cat.id}>
+                  {cat.name}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="btn btn-sm btn-outline border-slate-200 hover:bg-slate-50 font-bold px-3 text-xs"
+              onClick={() => setShowNewCategoryForm(true)}
+            >
+              + Custom
+            </button>
+          </div>
         </div>
 
         <div className="form-group">
@@ -288,6 +328,62 @@ export const ScheduleForm = ({ schedule, prefilledDate, reminder, onSubmit, onCa
           Cancel
         </button>
       </div>
+
+      {showNewCategoryForm && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 shadow-xl w-full max-w-sm border border-slate-100 flex flex-col gap-4">
+            <h3 className="font-bold text-lg text-slate-800">Add Custom Category</h3>
+            
+            {categoryError && <div className="text-xs text-red-500 font-semibold">{categoryError}</div>}
+            
+            <div className="form-group mb-0">
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Category Name</label>
+              <input 
+                type="text" 
+                value={newCategoryName} 
+                onChange={(e) => setNewCategoryName(e.target.value)}
+                placeholder="e.g. Health, Work"
+                className="mt-1 w-full border-2 border-slate-100 p-2 rounded-lg text-sm"
+              />
+            </div>
+
+            <div className="form-group mb-0">
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Theme Color</label>
+              <div className="flex items-center gap-3 mt-1">
+                <input 
+                  type="color" 
+                  value={newCategoryColor} 
+                  onChange={(e) => setNewCategoryColor(e.target.value)}
+                  className="w-10 h-10 border-0 cursor-pointer p-0 bg-transparent rounded-full"
+                />
+                <span className="text-xs font-mono font-semibold text-slate-500 uppercase">{newCategoryColor}</span>
+              </div>
+            </div>
+
+            <div className="flex gap-2 mt-2">
+              <button
+                type="button"
+                className="btn btn-sm btn-primary flex-1 py-2 font-bold"
+                onClick={handleCreateCategory}
+                disabled={categoryLoading}
+              >
+                {categoryLoading ? 'Saving...' : 'Save Category'}
+              </button>
+              <button
+                type="button"
+                className="btn btn-sm btn-outline border-slate-200 hover:bg-slate-50 flex-1 py-2 font-semibold text-slate-600"
+                onClick={() => {
+                  setShowNewCategoryForm(false);
+                  setNewCategoryName('');
+                  setCategoryError('');
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </form>
   );
 };
